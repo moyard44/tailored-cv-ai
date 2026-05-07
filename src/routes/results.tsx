@@ -1,20 +1,33 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   Copy,
   Download,
-  FileText,
   Lightbulb,
   Mail,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/site-header";
 import { StepIndicator } from "@/components/step-indicator";
 import { getSession, type TailorResult } from "@/lib/cv-store";
+import { parseTailoredCV } from "@/lib/cv-parse";
+import {
+  ResumeDocument,
+  buildResumeCSS,
+  type ResumeOptions,
+} from "@/components/resume-document";
+import { CustomizationPanel } from "@/components/customization-panel";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/results")({
@@ -22,18 +35,30 @@ export const Route = createFileRoute("/results")({
   head: () => ({
     meta: [
       { title: "Your tailored CV — CV Tailor" },
-      { name: "description", content: "Match score, missing keywords, and your ATS-optimized CV." },
+      {
+        name: "description",
+        content:
+          "Live ATS-friendly resume preview, premium templates, and one-click PDF export.",
+      },
     ],
   }),
 });
 
+const DEFAULT_OPTIONS: ResumeOptions = {
+  template: "minimal",
+  accent: "#2563eb",
+  fontSize: 11,
+  compact: false,
+  fontFamily: "Inter",
+};
+
 function ResultsPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<{
-    cvText: string;
-    result: TailorResult;
-  } | null>(null);
+  const [data, setData] = useState<{ result: TailorResult } | null>(null);
+  const [options, setOptions] = useState<ResumeOptions>(DEFAULT_OPTIONS);
+  const [showDownload, setShowDownload] = useState(false);
   const [showCover, setShowCover] = useState(false);
+  const docRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const s = getSession();
@@ -41,46 +66,53 @@ function ResultsPage() {
       navigate({ to: "/upload" });
       return;
     }
-    setData({ cvText: s.cvText, result: s.result });
+    setData({ result: s.result });
   }, [navigate]);
 
-  if (!data) return null;
-  const { cvText, result } = data;
+  const resume = useMemo(() => {
+    if (!data) return null;
+    return parseTailoredCV(data.result.tailoredCV, {
+      name: data.result.parsed.name,
+      contact: data.result.parsed.contact,
+    });
+  }, [data]);
 
-  const downloadText = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Downloaded ${filename}`);
-  };
+  if (!data || !resume) return null;
+  const { result } = data;
 
-  const downloadPdf = async () => {
-    // Print-style PDF via browser print of a hidden iframe
-    const win = window.open("", "_blank");
-    if (!win) return;
-    win.document.write(`<html><head><title>Tailored CV</title>
-      <style>
-        body { font-family: -apple-system, system-ui, Arial, sans-serif; padding: 48px; color: #111; line-height: 1.5; max-width: 800px; margin: 0 auto; }
-        pre { white-space: pre-wrap; font-family: inherit; font-size: 14px; }
-      </style></head><body><pre>${escapeHtml(result.tailoredCV)}</pre></body></html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 250);
-  };
-
-  const copy = async (text: string) => {
+  const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
+  };
+
+  const downloadPdf = () => {
+    const node = docRef.current;
+    if (!node) return;
+    const html = node.outerHTML;
+    const css = buildResumeCSS(options);
+    const win = window.open("", "_blank", "width=900,height=1100");
+    if (!win) {
+      toast.error("Pop-ups blocked. Allow pop-ups to download PDF.");
+      return;
+    }
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"/>
+      <title>${resume.name || "Tailored CV"}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com"/>
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+      <style>${css} body{margin:0;background:#fff;}</style>
+      </head><body>${html}</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      win.print();
+    }, 400);
   };
 
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="container mx-auto max-w-6xl px-4 py-10 sm:py-14">
+      <main className="container mx-auto max-w-7xl px-4 py-10 sm:py-14">
         <StepIndicator current={3} />
 
         {/* Header */}
@@ -90,30 +122,25 @@ function ResultsPage() {
               Your tailored CV is ready
             </h1>
             <p className="mt-2 text-muted-foreground">
-              {result.parsed.name ? `Optimized for ${result.parsed.name}` : "ATS-optimized and ready to download."}
+              Live preview, premium templates, and ATS-safe PDF export.
             </p>
           </div>
-          <Button variant="ghost" onClick={() => navigate({ to: "/job" })} className="gap-2 self-start sm:self-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate({ to: "/job" })}
+            className="gap-2 self-start sm:self-auto"
+          >
             <ArrowLeft className="h-4 w-4" /> Edit job description
           </Button>
         </div>
 
-        {/* Score + Insights */}
+        {/* Score + insights */}
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           <ScoreCard score={result.matchScore} seniority={result.jobAnalysis.seniority} />
-          <KeywordCard
-            title="Matched keywords"
-            items={result.matchedKeywords}
-            kind="success"
-          />
-          <KeywordCard
-            title="Missing keywords"
-            items={result.missingKeywords}
-            kind="warning"
-          />
+          <KeywordCard title="Matched keywords" items={result.matchedKeywords} kind="success" />
+          <KeywordCard title="Missing keywords" items={result.missingKeywords} kind="warning" />
         </div>
 
-        {/* Insights */}
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <InsightCard
             title="Your strengths"
@@ -127,32 +154,52 @@ function ResultsPage() {
           />
         </div>
 
-        {/* Comparison */}
-        <div className="mt-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground">Before vs after</h2>
+        {/* Resume builder area */}
+        <div className="mt-10">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">Resume preview</h2>
+              <p className="text-sm text-muted-foreground">
+                Pick a template and customize — your CV updates live.
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => copy(result.tailoredCV)} className="gap-2">
-                <Copy className="h-4 w-4" /> Copy CV
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyText(result.tailoredCV)}
+                className="gap-2"
+              >
+                <Copy className="h-4 w-4" /> Copy text
               </Button>
-              <Button variant="outline" size="sm" onClick={() => downloadText("tailored-cv.txt", result.tailoredCV)} className="gap-2">
-                <Download className="h-4 w-4" /> .txt
-              </Button>
-              <Button size="sm" onClick={downloadPdf} className="gap-2">
-                <Download className="h-4 w-4" /> Download PDF
+              <Button
+                size="sm"
+                onClick={() => setShowDownload(true)}
+                className="gap-2 shadow-[var(--shadow-glow)]"
+              >
+                <Download className="h-4 w-4" /> Download CV
               </Button>
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <CVPanel label="Original CV" text={cvText} />
-            <CVPanel label="Tailored CV" text={result.tailoredCV} highlight />
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <CustomizationPanel
+              options={options}
+              onChange={setOptions}
+              onDownload={() => setShowDownload(true)}
+            />
+
+            <div className="rounded-2xl border border-border bg-[oklch(0.96_0.005_250)] p-4 sm:p-8 shadow-[var(--shadow-card)]">
+              <div className="mx-auto overflow-hidden rounded-lg bg-white shadow-[0_8px_30px_-12px_rgba(15,23,42,0.25)]">
+                <ResumeDocument ref={docRef} resume={resume} options={options} />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Cover letter */}
         {result.coverLetter && (
-          <div className="mt-10">
+          <div className="mt-12">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
                 <Mail className="h-5 w-5 text-brand" /> Cover letter
@@ -162,7 +209,12 @@ function ResultsPage() {
                   {showCover ? "Hide" : "Show"}
                 </Button>
                 {showCover && (
-                  <Button variant="outline" size="sm" onClick={() => copy(result.coverLetter)} className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyText(result.coverLetter)}
+                    className="gap-2"
+                  >
                     <Copy className="h-4 w-4" /> Copy
                   </Button>
                 )}
@@ -184,19 +236,52 @@ function ResultsPage() {
           </Button>
         </div>
       </main>
+
+      {/* Download confirmation modal */}
+      <Dialog open={showDownload} onOpenChange={setShowDownload}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Download your tailored CV</DialogTitle>
+            <DialogDescription>
+              Preview of the selected template. Export is high-quality, ATS-safe PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[420px] overflow-auto rounded-lg border border-border bg-[oklch(0.96_0.005_250)] p-3">
+            <div className="origin-top scale-[0.7] sm:scale-[0.78]">
+              <div className="mx-auto bg-white shadow-md">
+                <ResumeDocument resume={resume} options={options} />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="ghost" onClick={() => setShowDownload(false)}>
+              Back to edit
+            </Button>
+            <Button variant="outline" onClick={() => copyText(result.tailoredCV)} className="gap-2">
+              <Copy className="h-4 w-4" /> Copy text
+            </Button>
+            <Button
+              onClick={() => {
+                setShowDownload(false);
+                setTimeout(downloadPdf, 100);
+              }}
+              className="gap-2 shadow-[var(--shadow-glow)]"
+            >
+              <Download className="h-4 w-4" /> Download PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function ScoreCard({ score, seniority }: { score: number; seniority: string }) {
   const safe = Math.max(0, Math.min(100, Math.round(score)));
-  const color =
-    safe >= 75 ? "text-success" : safe >= 50 ? "text-warning" : "text-destructive";
-  const ring =
-    safe >= 75 ? "stroke-success" : safe >= 50 ? "stroke-warning" : "stroke-destructive";
+  const color = safe >= 75 ? "text-success" : safe >= 50 ? "text-warning" : "text-destructive";
+  const ring = safe >= 75 ? "stroke-success" : safe >= 50 ? "stroke-warning" : "stroke-destructive";
   const C = 2 * Math.PI * 44;
   const offset = C - (safe / 100) * C;
-
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-5">
@@ -288,35 +373,4 @@ function InsightCard({
       </ul>
     </div>
   );
-}
-
-function CVPanel({ label, text, highlight }: { label: string; text: string; highlight?: boolean }) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col rounded-2xl border bg-card shadow-[var(--shadow-soft)]",
-        highlight ? "border-brand/40 ring-1 ring-brand/20" : "border-border",
-      )}
-    >
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <FileText className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        {highlight && (
-          <span className="ml-auto rounded-md bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
-            ATS-optimized
-          </span>
-        )}
-      </div>
-      <pre className="max-h-[600px] overflow-auto whitespace-pre-wrap p-5 font-mono text-xs leading-relaxed text-foreground">
-        {text}
-      </pre>
-    </div>
-  );
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
