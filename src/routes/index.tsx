@@ -7,16 +7,16 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "CV Tailor — Tailor your CV to any job in seconds" },
+      { title: "ResumeIN — AI Resume Optimization Platform" },
       {
         name: "description",
         content:
-          "Upload your CV, paste a job description, and get an ATS-optimized resume instantly. Match score, missing keywords, and a rewritten CV.",
+          "Tailor your resume for every opportunity. Upload your CV, paste a job description, and instantly generate an ATS-optimized professional resume.",
       },
-      { property: "og:title", content: "CV Tailor — ATS-optimized resumes in seconds" },
+      { property: "og:title", content: "ResumeIN — AI Resume Optimization Platform" },
       {
         property: "og:description",
-        content: "AI-powered CV tailoring with match scoring and ATS optimization.",
+        content: "AI-powered resume tailoring with match scoring and ATS optimization.",
       },
     ],
   }),
@@ -29,32 +29,35 @@ function Index() {
       <main>
         {/* Hero */}
         <section className="relative overflow-hidden">
+          {/* ambient glow */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[image:var(--gradient-hero)] opacity-[0.04]"
+            className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[920px] -translate-x-1/2 rounded-full bg-[image:var(--gradient-brand)] opacity-20 blur-[140px]"
           />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -top-32 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-brand/20 blur-[120px]"
-          />
-          <div className="container relative mx-auto max-w-5xl px-4 pb-20 pt-20 sm:pt-28">
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid" />
+
+          <div className="container relative mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-32">
             <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground shadow-[var(--shadow-soft)] backdrop-blur">
+              <div className="glass mb-7 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-brand" />
-                AI-powered, ATS-optimized
+                AI Resume Optimization Platform
               </div>
-              <h1 className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-6xl">
-                Tailor your CV to any job in seconds
+              <h1 className="text-balance text-5xl font-semibold tracking-tight text-foreground sm:text-7xl">
+                Tailor Your Resume for{" "}
+                <span className="text-gradient-brand">Every Opportunity</span>
               </h1>
-              <p className="mt-5 max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Upload your CV, paste a job description, and get a clean,
-                ATS-optimized resume instantly — with a match score, missing
-                keywords, and a side-by-side comparison.
+              <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Upload your CV, paste a job description, and instantly generate
+                an ATS-optimized professional resume.
               </p>
-              <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="h-12 gap-2 px-6 text-base shadow-[var(--shadow-glow)]">
+              <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 gap-2 bg-[image:var(--gradient-brand)] px-7 text-base font-medium text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-[1.03] hover:bg-[image:var(--gradient-brand)]"
+                >
                   <Link to="/upload">
-                    Start for free
+                    Start Free
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -62,7 +65,7 @@ function Index() {
               </div>
 
               <div className="mt-14 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-                {["No fake experience", "ATS-friendly format", "Instant results"].map((t) => (
+                {["Honest, never fabricated", "ATS-friendly format", "Instant results"].map((t) => (
                   <div key={t} className="flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                     {t}
@@ -74,7 +77,7 @@ function Index() {
         </section>
 
         {/* Features */}
-        <section className="container mx-auto max-w-5xl px-4 pb-24">
+        <section className="container mx-auto max-w-5xl px-4 pb-28">
           <div className="grid gap-4 sm:grid-cols-3">
             {[
               {
@@ -85,7 +88,7 @@ function Index() {
               {
                 icon: Target,
                 title: "Match score",
-                desc: "See exactly how well your CV aligns with the job — and what keywords you’re missing.",
+                desc: "See exactly how well your CV aligns with the job — and what keywords you're missing.",
               },
               {
                 icon: Zap,
@@ -95,9 +98,13 @@ function Index() {
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="group rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-soft)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-card/60 p-6 backdrop-blur-sm transition-all hover:-translate-y-1 hover:border-brand/40 hover:shadow-[var(--shadow-glow)]"
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-brand">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -top-px left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
+                />
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[image:var(--gradient-brand)] text-primary-foreground shadow-[var(--shadow-glow)]">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-1.5 font-semibold text-foreground">{title}</h3>
@@ -109,7 +116,7 @@ function Index() {
       </main>
       <footer className="border-t border-border/60 py-8">
         <div className="container mx-auto max-w-6xl px-4 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} CV Tailor. Built for job seekers.
+          © {new Date().getFullYear()} ResumeIN. AI Resume Optimization Platform.
         </div>
       </footer>
     </div>
