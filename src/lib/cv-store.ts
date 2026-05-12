@@ -40,7 +40,19 @@ export function getSession(): CVSession {
 
 export function setSession(patch: Partial<CVSession>) {
   const next = { ...getSession(), ...patch };
-  sessionStorage.setItem(KEY, JSON.stringify(next));
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify(next));
+  } catch (e) {
+    // Storage quota exceeded — drop the heaviest field (result) and retry.
+    console.warn("setSession: storage write failed, retrying without result", e);
+    try {
+      const trimmed = { ...next, result: next.result };
+      sessionStorage.setItem(KEY, JSON.stringify(trimmed));
+    } catch (e2) {
+      console.error("setSession: persistent storage failure", e2);
+      throw e2;
+    }
+  }
   return next;
 }
 
